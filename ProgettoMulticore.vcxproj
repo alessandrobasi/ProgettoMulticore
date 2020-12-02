@@ -88,6 +88,11 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;$(MSMPI_INC);$(MSMPI_INC)x64</AdditionalIncludeDirectories>
+      <AdditionalHeaderUnitDependencies>
+      </AdditionalHeaderUnitDependencies>
+      <AdditionalModuleDependencies>$(MSMPI_LIB64);$(MSMPI_LIB32);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;%(AdditionalHeaderUnitDependencies)</AdditionalModuleDependencies>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -102,6 +107,11 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;$(MSMPI_INC);$(MSMPI_INC)x64</AdditionalIncludeDirectories>
+      <AdditionalHeaderUnitDependencies>
+      </AdditionalHeaderUnitDependencies>
+      <AdditionalModuleDependencies>$(MSMPI_LIB64);$(MSMPI_LIB32);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;%(AdditionalHeaderUnitDependencies)</AdditionalModuleDependencies>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -117,6 +127,10 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <OpenMPSupport>true</OpenMPSupport>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;$(MSMPI_INC);$(MSMPI_INC)x64</AdditionalIncludeDirectories>
+      <AdditionalHeaderUnitDependencies>
+      </AdditionalHeaderUnitDependencies>
+      <AdditionalModuleDependencies>$(MSMPI_LIB64);$(MSMPI_LIB32);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;%(AdditionalHeaderUnitDependencies)</AdditionalModuleDependencies>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -131,6 +145,11 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;$(MSMPI_INC);$(MSMPI_INC)x64</AdditionalIncludeDirectories>
+      <AdditionalHeaderUnitDependencies>
+      </AdditionalHeaderUnitDependencies>
+      <AdditionalModuleDependencies>$(MSMPI_LIB64);$(MSMPI_LIB32);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;%(AdditionalHeaderUnitDependencies)</AdditionalModuleDependencies>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
