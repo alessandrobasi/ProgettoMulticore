@@ -2,8 +2,15 @@
 /*
 
 Progetto n° 7 Sudoku
-Approccio multicore usato:  MPI, OpenMP  
+Approccio multicore usato: MPI, OpenMP  
+Approccio algoritmo usato: Backtracking, ???
+Studenti:
+    Daniele Fardella        fardella.1642573@studenti.uniroma1.it
+    Alessandro Basilici     basilici.1835392@studenti.uniroma1.it
 
+Sorgenti:
+    https://en.wikipedia.org/wiki/Sudoku_solving_algorithms
+    http://www.ams.org/notices/200904/tx090400460p.pdf
 
 */
 
