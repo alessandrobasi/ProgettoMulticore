@@ -25,12 +25,12 @@ Sorgenti:
 #define MAX_BUFF 256
 
 // sizeof(sudo) = 32 byte
-typedef std::vector<std::vector<std::pair<std::vector<int>, int>>> sudo;
+typedef std::vector<std::vector<int>> sudo;
 
 
 bool check_row(sudo sudoku, int num, int i) {
     for (int item = 0; item < 9; item++) {
-        if (num == sudoku[i][item].second) {
+        if (num == sudoku[i][item]) {
             return true;
         }
     }
@@ -39,7 +39,7 @@ bool check_row(sudo sudoku, int num, int i) {
 
 bool check_col(sudo sudoku, int num, int j) {
     for (int item = 0; item < 9; item++) {
-        if (num == sudoku[item][j].second) {
+        if (num == sudoku[item][j]) {
             return true;
         }
     }
@@ -52,7 +52,7 @@ bool check_square(sudo sudoku, int num, int i, int j) {
 
     for (int add_i = 0; add_i < 3; add_i++) {
         for (int add_j = 0; add_j < 3; add_j++) {
-            if (num == sudoku[(3 * i) + add_i][(3 * j) + add_j].second) {
+            if (num == sudoku[(3 * i) + add_i][(3 * j) + add_j]) {
                 return true;
             }
         }
@@ -71,8 +71,6 @@ int main(int argc, char* argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &com_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-
-
     /*
     Possiamo vedere la griglia del sudoku come una serie continua di celle
         0, ... , 8 (prima riga), 9, ... , 17, ...
@@ -90,34 +88,42 @@ int main(int argc, char* argv[]) {
     !! NB: la cella di fine deve essere esclusa poichè è la cella di inizio del successivo thread
 
     */
-
-    int lavoro_per_thread = 81.0 / com_size;
+    sudo sudoku;
+    sudoku.resize(9);
+    int lavoro_per_thread = 81 / com_size;
     int inizio = rank * lavoro_per_thread; // cella del vettore di inzio
     int fine = inizio + lavoro_per_thread; // cella di fine 
-
+    std::cout << "rank: " << rank << std::endl;
     if (rank == 0) {
 
-        sudo sudoku = {
-            { { {}, 0 }, { {}, 0 }, { {}, 0 }, { {}, 1 }, { {}, 8 }, { {}, 0 }, { {}, 3 }, { {}, 6 }, { {}, 0 } }, //  0 ...  8
-            { { {}, 0 }, { {}, 7 }, { {}, 0 }, { {}, 2 }, { {}, 0 }, { {}, 4 }, { {}, 0 }, { {}, 0 }, { {}, 8 } }, //  9 ... 17
-            { { {}, 0 }, { {}, 0 }, { {}, 0 }, { {}, 0 }, { {}, 5 }, { {}, 7 }, { {}, 2 }, { {}, 0 }, { {}, 9 } }, // 18 ... 26
-            { { {}, 1 }, { {}, 6 }, { {}, 0 }, { {}, 0 }, { {}, 7 }, { {}, 0 }, { {}, 9 }, { {}, 8 }, { {}, 0 } }, // 27 ... 35
-            { { {}, 8 }, { {}, 0 }, { {}, 3 }, { {}, 5 }, { {}, 0 }, { {}, 1 }, { {}, 6 }, { {}, 0 }, { {}, 2 } }, // 36 ... 44
-            { { {}, 0 }, { {}, 5 }, { {}, 7 }, { {}, 0 }, { {}, 9 }, { {}, 0 }, { {}, 0 }, { {}, 3 }, { {}, 4 } }, // 45 ... 53
-            { { {}, 5 }, { {}, 0 }, { {}, 2 }, { {}, 7 }, { {}, 6 }, { {}, 0 }, { {}, 0 }, { {}, 0 }, { {}, 0 } }, // 54 ... 62
-            { { {}, 9 }, { {}, 0 }, { {}, 0 }, { {}, 4 }, { {}, 0 }, { {}, 8 }, { {}, 0 }, { {}, 5 }, { {}, 0 } }, // 63 ... 71
-            { { {}, 0 }, { {}, 8 }, { {}, 6 }, { {}, 0 }, { {}, 1 }, { {}, 5 }, { {}, 0 }, { {}, 0 }, { {}, 0 } }, // 72 ... 80
+        sudoku = {
+            { 0 , 0 , 0 , 1 , 8 , 0 , 3 , 6 , 0 }, //  0 ...  8
+            { 0 , 7 , 0 , 2 , 0 , 4 , 0 , 0 , 8 }, //  9 ... 17
+            { 0 , 0 , 0 , 0 , 5 , 7 , 2 , 0 , 9 }, // 18 ... 26
+            { 1 , 6 , 0 , 0 , 7 , 0 , 9 , 8 , 0 }, // 27 ... 35
+            { 8 , 0 , 3 , 5 , 0 , 1 , 6 , 0 , 2 }, // 36 ... 44
+            { 0 , 5 , 7 , 0 , 9 , 0 , 0 , 3 , 4 }, // 45 ... 53
+            { 5 , 0 , 2 , 7 , 6 , 0 , 0 , 0 , 0 }, // 54 ... 62
+            { 9 , 0 , 0 , 4 , 0 , 8 , 0 , 5 , 0 }, // 63 ... 71
+            { 0 , 8 , 6 , 0 , 1 , 5 , 0 , 0 , 0 }, // 72 ... 80
         };
         
+        //std::cout << sizeof(sudoku[0][0]) << " " << sizeof(sudoku[0]) << " " << sudoku.size() << " " << sizeof(sudo) << std::endl;
+        std::cout << "inviando" << std::endl;
+        //MPI_Bcast(&sudoku, sudoku.size(), MPI_INT, 0, MPI_COMM_WORLD);
+        std::cout << "invitato!!" << std::endl;
 
     }
     else {
         
-
+        //MPI_Recv(&sudoku, 9, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUSES_IGNORE);
+        MPI_Barrier(MPI_COMM_WORLD);
+        std::cout << "ottenuto" << std::endl;
+        //std::cout << sudoku.size() << " " << sudoku[0][7] << std::endl;
 
     }
-
-
+    std::cout << "rank fin " << rank << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
 
 
     MPI_Finalize();
