@@ -16,13 +16,15 @@ Sorgenti:
 */
 
 #include <iostream>
+#include <vector>
 #include <stdio.h>
 //#include <omp.h>  // Impostazioni di Visual Studio | Proprietà -> C/c++ -> Linguaggio -> Supporto per OpenMP
 #include "mpi.h"  // https://www.microsoft.com/en-us/download/details.aspx?id=100593
-#include <vector>
+
 
 #define MAX_BUFF 256
 
+// sizeof(sudo) = 32 byte
 typedef std::vector<std::vector<std::pair<std::vector<int>, int>>> sudo;
 
 
@@ -69,6 +71,8 @@ int main(int argc, char* argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &com_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+
+
     /*
     Possiamo vedere la griglia del sudoku come una serie continua di celle
         0, ... , 8 (prima riga), 9, ... , 17, ...
@@ -82,16 +86,14 @@ int main(int argc, char* argv[]) {
         9  : se abbiamo  9 thread
         1  : se abbiamo 81 thread
 
-    per ogni thread ci interessa la cella di partenza (inizio)
-    e la cella di fine (fine), NB la cella di fine deve essere esclusa 
-
+    per ogni thread ci interessa la cella di partenza (inizio) e la cella di fine (fine). 
+    !! NB: la cella di fine deve essere esclusa poichè è la cella di inizio del successivo thread
 
     */
 
-
     int lavoro_per_thread = 81.0 / com_size;
-    int inizio = rank * lavoro_per_thread; // cella del vettore
-    int fine = inizio + lavoro_per_thread;
+    int inizio = rank * lavoro_per_thread; // cella del vettore di inzio
+    int fine = inizio + lavoro_per_thread; // cella di fine 
 
     if (rank == 0) {
 
@@ -107,7 +109,6 @@ int main(int argc, char* argv[]) {
             { { {}, 0 }, { {}, 8 }, { {}, 6 }, { {}, 0 }, { {}, 1 }, { {}, 5 }, { {}, 0 }, { {}, 0 }, { {}, 0 } }, // 72 ... 80
         };
         
-
 
     }
     else {
