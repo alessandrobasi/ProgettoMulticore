@@ -17,6 +17,7 @@ Sorgenti:
 
 #include <iostream>
 #include <vector>
+#include <array> 
 #include <stdio.h>
 //#include <omp.h>  // Impostazioni di Visual Studio | Proprietà -> C/c++ -> Linguaggio -> Supporto per OpenMP
 #include "mpi.h"  // https://www.microsoft.com/en-us/download/details.aspx?id=100593
@@ -25,9 +26,11 @@ Sorgenti:
 #define MAX_BUFF 256
 
 // sizeof(sudo) = 32 byte
-typedef std::vector<std::vector<int>> sudo;
+//typedef std::vector<std::vector<int>> sudo;
+//#define sudo std::array<int, 81>;
+typedef std::array<int, 81> sudo;
 
-
+/*
 bool check_row(sudo sudoku, int num, int i) {
     for (int item = 0; item < 9; item++) {
         if (num == sudoku[i][item]) {
@@ -59,7 +62,7 @@ bool check_square(sudo sudoku, int num, int i, int j) {
     }
     return false;
 }
-
+*/
 
 int main(int argc, char* argv[]) {
     char buff[MAX_BUFF] = {0};
@@ -89,42 +92,48 @@ int main(int argc, char* argv[]) {
 
     */
     sudo sudoku;
-    sudoku.resize(9);
     int lavoro_per_thread = 81 / com_size;
     int inizio = rank * lavoro_per_thread; // cella del vettore di inzio
     int fine = inizio + lavoro_per_thread; // cella di fine 
-    std::cout << "rank: " << rank << std::endl;
-    if (rank == 0) {
 
+    std::cout << "attivo rank: " << rank << std::endl;
+
+    if (rank == 0) {
         sudoku = {
-            { 0 , 0 , 0 , 1 , 8 , 0 , 3 , 6 , 0 }, //  0 ...  8
-            { 0 , 7 , 0 , 2 , 0 , 4 , 0 , 0 , 8 }, //  9 ... 17
-            { 0 , 0 , 0 , 0 , 5 , 7 , 2 , 0 , 9 }, // 18 ... 26
-            { 1 , 6 , 0 , 0 , 7 , 0 , 9 , 8 , 0 }, // 27 ... 35
-            { 8 , 0 , 3 , 5 , 0 , 1 , 6 , 0 , 2 }, // 36 ... 44
-            { 0 , 5 , 7 , 0 , 9 , 0 , 0 , 3 , 4 }, // 45 ... 53
-            { 5 , 0 , 2 , 7 , 6 , 0 , 0 , 0 , 0 }, // 54 ... 62
-            { 9 , 0 , 0 , 4 , 0 , 8 , 0 , 5 , 0 }, // 63 ... 71
-            { 0 , 8 , 6 , 0 , 1 , 5 , 0 , 0 , 0 }, // 72 ... 80
+             0 , 0 , 0 , 1 , 8 , 0 , 3 , 6 , 0 , //  0 ...  8
+             0 , 7 , 0 , 2 , 0 , 4 , 0 , 0 , 8 , //  9 ... 17
+             0 , 0 , 0 , 0 , 5 , 7 , 2 , 0 , 9 , // 18 ... 26
+             1 , 6 , 0 , 0 , 7 , 0 , 9 , 8 , 0 , // 27 ... 35
+             8 , 0 , 3 , 5 , 0 , 1 , 6 , 0 , 2 , // 36 ... 44
+             0 , 5 , 7 , 0 , 9 , 0 , 0 , 3 , 4 , // 45 ... 53
+             5 , 0 , 2 , 7 , 6 , 0 , 0 , 0 , 0 , // 54 ... 62
+             9 , 0 , 0 , 4 , 0 , 8 , 0 , 5 , 0 , // 63 ... 71
+             0 , 8 , 6 , 0 , 1 , 5 , 0 , 0 , 0 , // 72 ... 80
         };
         
         //std::cout << sizeof(sudoku[0][0]) << " " << sizeof(sudoku[0]) << " " << sudoku.size() << " " << sizeof(sudo) << std::endl;
-        std::cout << "inviando" << std::endl;
-        //MPI_Bcast(&sudoku, sudoku.size(), MPI_INT, 0, MPI_COMM_WORLD);
-        std::cout << "invitato!!" << std::endl;
-
+        //std::cout << "rank 0 inviando sudoku" << std::endl;
+        //MPI_Bcast(&sudoku, 81, MPI_INT, 0, MPI_COMM_WORLD);
+        //MPI_Send(&sudoku, 81, MPI_INT, 1, 0, MPI_COMM_WORLD);
+        
+        //std::cout << "rank 0 invitato sudoku!!" << std::endl;
+        
     }
     else {
+        //sudoku.resize(9);
+        //MPI_Recv(&sudoku, 81, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUSES_IGNORE);
+        //std::vector<int>* test;
+        //MPI_Barrier(MPI_COMM_WORLD);
         
-        //MPI_Recv(&sudoku, 9, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUSES_IGNORE);
-        MPI_Barrier(MPI_COMM_WORLD);
-        std::cout << "ottenuto" << std::endl;
-        //std::cout << sudoku.size() << " " << sudoku[0][7] << std::endl;
+        //std::cout << "ottenuto" << std::endl;
+        //std::cout << sudoku[63] << std::endl;
 
     }
-    std::cout << "rank fin " << rank << std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+    //std::cout << "rank fin " << rank << std::endl;
 
+
+    MPI_Bcast(&sudoku, 81, MPI_INT, 0, MPI_COMM_WORLD);
+    std::cout << sudoku[63] << std::endl;
 
     MPI_Finalize();
     return 0;
