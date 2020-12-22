@@ -17,59 +17,138 @@ Sorgenti:
 
 #include <iostream>
 #include <vector>
+#include <algorithm>
+#include <iterator>
 #include <array> 
 #include <stdio.h>
 //#include <omp.h>  // Impostazioni di Visual Studio | Proprietà -> C/c++ -> Linguaggio -> Supporto per OpenMP
 #include "mpi.h"  // https://www.microsoft.com/en-us/download/details.aspx?id=100593
 
 
-#define MAX_BUFF 256
+#define MAX_BUFF 81
+#define ROOT 0
 
-// sizeof(sudo) = 32 byte
-//typedef std::vector<std::vector<int>> sudo;
-//#define sudo std::array<int, 81>;
 typedef std::array<int, 81> sudo;
+typedef std::vector<std::vector<std::vector<int>>> sudonote;
 
-/*
-bool check_row(sudo sudoku, int num, int i) {
-    for (int item = 0; item < 9; item++) {
-        if (num == sudoku[i][item]) {
+
+bool check_row(sudo sudoku, int trynum, int riga) {
+
+    for (int incr = 0; incr < 9; incr++) {
+        if (trynum == sudoku[riga*9 + incr]) {
             return true;
         }
     }
     return false;
 }
 
-bool check_col(sudo sudoku, int num, int j) {
-    for (int item = 0; item < 9; item++) {
-        if (num == sudoku[item][j]) {
+bool check_col(sudo sudoku, int trynum, int col) {
+    for (int incr = 0; incr < 9; incr++) {
+        if (trynum == sudoku[col + 9 * incr]) {
             return true;
         }
     }
     return false;
 }
 
-bool check_square(sudo sudoku, int num, int i, int j) {
-    i /= 3;
-    j /= 3;
+bool check_square(sudo sudoku, int trynum, int riga, int col) {
+    riga /= 3;
+    col /= 3;
 
-    for (int add_i = 0; add_i < 3; add_i++) {
-        for (int add_j = 0; add_j < 3; add_j++) {
-            if (num == sudoku[(3 * i) + add_i][(3 * j) + add_j]) {
+    for (int add_riga = 0; add_riga < 3; add_riga++) {
+        for (int add_col = 0; add_col < 3; add_col++) {
+            if (trynum == sudoku[ 9*(3*riga + add_riga) + (3*col + add_col) ]) {
                 return true;
             }
         }
     }
     return false;
 }
+
+/*
+* questa funzione cerca singoli elementi nelle note
+* e li inserisce nel sudoku
 */
+void solve_singleton(sudo &sudoku, sudonote &note) {
+
+    for (int riga = 0; riga < 9; riga++) {
+
+        for (int colonna = 0; colonna < 9; colonna++) {
+
+            if (note[riga][colonna].size() == 1) {
+                sudoku[9*riga + colonna] = note[riga][colonna][0];
+            }
+
+        }
+
+    }
+
+}
+
+/*
+* questa funzione riempie la griglia delle note
+* con i possibili valori dopo aver controllato
+* riga, colonna e quadrato
+*/
+void markup(sudo sudoku, int casella, sudonote &note) {
+
+    int riga = casella / 9;
+    int colonna = casella % 9;
+
+    for (int trynum = 1; trynum <= 9; trynum++) {
+
+        if (!check_row(sudoku, trynum, riga) && 
+            !check_col(sudoku, trynum, colonna) && 
+            !check_square(sudoku, trynum, riga, colonna)) {
+
+            note[riga][colonna].push_back(trynum);
+
+        }// if
+    }// for
+}// markup
+
+
+////////// debug
+void _pprint(sudo sudoku) {
+    for (int i = 0; i < 81; i++) {
+
+        if (i % 9 == 0) {
+            std::cout << std::endl;
+        }
+
+        std::cout << sudoku[i] << " ";
+
+    }
+    std::cout << std::endl;
+}
+
+void _pprint(sudonote note) {
+    for (int i = 0; i < 9; i++) {
+
+        for (int j = 0; j < 9; j++) {
+            std::cout << "[";
+            for (int num : note[i][j] ) {
+                std::cout << num << ",";
+            }
+            std::cout <<"], ";
+        }
+        std::cout << std::endl;
+        
+    }
+}
+//////////
 
 int main(int argc, char* argv[]) {
-    char buff[MAX_BUFF] = {0};
+    
+    // Inizializzo le 2 variabili di controllo
+    /*
+    * com_size = numero totale di processi (-n X => com_size = X+1)
+    * rank     = numero univoco del processo (0 = ROOT, ... )
+    */
     int com_size;
     int rank;
 
-    // inizializzo mpi
+    // Inizializzo mpi
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &com_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -78,11 +157,11 @@ int main(int argc, char* argv[]) {
     Possiamo vedere la griglia del sudoku come una serie continua di celle
         0, ... , 8 (prima riga), 9, ... , 17, ...
 
-
     Stabiliamo prima di tutto quante celle un thread deve lavorare:
 
     com_size sarà il numero totale di thread a nostra disposizione
-    facendo una semplice divisione e prendendo la parte intera otteniamo il lavoro per ogni singolo thread
+    facendo una semplice divisione e prendendo la parte intera otteniamo il lavoro per ogni singolo thread,
+    (numero totale di celle)/(numero totale di processi):
         81 : se abbiamo  1 thread
         9  : se abbiamo  9 thread
         1  : se abbiamo 81 thread
@@ -91,14 +170,28 @@ int main(int argc, char* argv[]) {
     !! NB: la cella di fine deve essere esclusa poichè è la cella di inizio del successivo thread
 
     */
+    // array vuoto del sudoku
     sudo sudoku;
-    int lavoro_per_thread = 81 / com_size;
-    int inizio = rank * lavoro_per_thread; // cella del vettore di inzio
+    sudo recv_sudoku;
+
+    // griglia vuota di note
+    sudonote note;
+
+    // definisco la grandezza del numero di righe e colonne
+    note.resize(9);
+    for (int i = 0; i < 9; i++) {
+        note[i].resize(9);
+    }
+
+
+    int lavoro_per_thread = 81 / com_size; // quante celle deve controllare ogni thread
+    int inizio = rank * lavoro_per_thread; // cella del array di inzio
     int fine = inizio + lavoro_per_thread; // cella di fine 
 
-    std::cout << "attivo rank: " << rank << std::endl;
-
-    if (rank == 0) {
+    // per una giusta dimostrazione creo il sudoku solo nel thread master
+    if (rank == ROOT) {
+        // private sudoku 
+        // dati disponibili solo al thread master
         sudoku = {
              0 , 0 , 0 , 1 , 8 , 0 , 3 , 6 , 0 , //  0 ...  8
              0 , 7 , 0 , 2 , 0 , 4 , 0 , 0 , 8 , //  9 ... 17
@@ -110,30 +203,53 @@ int main(int argc, char* argv[]) {
              9 , 0 , 0 , 4 , 0 , 8 , 0 , 5 , 0 , // 63 ... 71
              0 , 8 , 6 , 0 , 1 , 5 , 0 , 0 , 0 , // 72 ... 80
         };
-        
-        //std::cout << sizeof(sudoku[0][0]) << " " << sizeof(sudoku[0]) << " " << sudoku.size() << " " << sizeof(sudo) << std::endl;
-        //std::cout << "rank 0 inviando sudoku" << std::endl;
-        //MPI_Bcast(&sudoku, 81, MPI_INT, 0, MPI_COMM_WORLD);
-        //MPI_Send(&sudoku, 81, MPI_INT, 1, 0, MPI_COMM_WORLD);
-        
-        //std::cout << "rank 0 invitato sudoku!!" << std::endl;
+    }
+    
+    // allineo ogni thread su questa barriera, al fine di essere sicuro 
+    // che il primo thread (che supera la bariera) riesce a trovare il sudoku già riempito
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Bcast(&sudoku, MAX_BUFF, MPI_INT, 0, MPI_COMM_WORLD);
+    
+    // a questo punto ogni thread lavora per se
+
+    std::cout << "rank: " << rank << "/" << com_size << " inizio: " << inizio << " fine: " << fine << std::endl;
+
+    // il thread inizia ad iterare sul numero di inizio fino al numero di fine (fine esclusa)
+
+    for (int casella = inizio; casella < fine; casella++) {
+        // controllo se il numero della casella in cui sono arrivato è uno zero
+        if(sudoku[casella] != 0){
+            continue;
+        }
+
+        // sudoku[casella] == 0
+        // segno nelle note (alla casella designata) i possibili valori
+        markup(sudoku, casella, note);
         
     }
-    else {
-        //sudoku.resize(9);
-        //MPI_Recv(&sudoku, 81, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUSES_IGNORE);
-        //std::vector<int>* test;
-        //MPI_Barrier(MPI_COMM_WORLD);
-        
-        //std::cout << "ottenuto" << std::endl;
-        //std::cout << sudoku[63] << std::endl;
 
+    // dopo aver riempito le note, ogni thread cerca i singoli elementi
+    // e riempie il sudoku
+    solve_singleton(sudoku, note);
+
+    //std::copy(arr10.begin(), arr10.begin() + 5, arr5.begin());
+    std::copy(sudoku.begin()+inizio, sudoku.begin() + inizio + fine, sudoku.begin());
+
+    std::cout << "ok" << std::endl;
+
+    // a questo punto i thread devono scambiarsi le proprie tabelle
+    // di sudoku compilate con i singleton
+    MPI_Allgather(&sudoku, fine-inizio, MPI_INT, &recv_sudoku, fine-inizio, MPI_INT, MPI_COMM_WORLD);
+    //MPI_Gather(&sudoku, 81, MPI_INT, &recv_sudoku, 81, MPI_INT, ROOT, MPI_COMM_WORLD);
+
+    if (rank == ROOT) {
+        _pprint(recv_sudoku);
     }
-    //std::cout << "rank fin " << rank << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank != ROOT) {
+        _pprint(recv_sudoku);
+    }
 
-
-    MPI_Bcast(&sudoku, 81, MPI_INT, 0, MPI_COMM_WORLD);
-    std::cout << sudoku[63] << std::endl;
 
     MPI_Finalize();
     return 0;
