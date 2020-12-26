@@ -183,10 +183,14 @@ int main(int argc, char* argv[]) {
         note[i].resize(9);
     }
 
-
+    //TODO: numero di thread non divisibili per 2 lasciano l'ultima casella del sudoku invariata
     int lavoro_per_thread = 81 / com_size; // quante celle deve controllare ogni thread
     int inizio = rank * lavoro_per_thread; // cella del array di inzio
-    int fine = inizio + lavoro_per_thread; // cella di fine 
+    int fine = inizio + lavoro_per_thread; // cella di fine
+    /*if (rank == com_size - 1) {
+        fine += com_size % 3;
+        lavoro_per_thread += com_size % 3;
+    }*/
 
     // per una giusta dimostrazione creo il sudoku solo nel thread master
     if (rank == ROOT) {
@@ -211,11 +215,9 @@ int main(int argc, char* argv[]) {
     MPI_Bcast(&sudoku, MAX_BUFF, MPI_INT, 0, MPI_COMM_WORLD);
     
     // a questo punto ogni thread lavora per se
-
-    std::cout << "rank: " << rank << "/" << com_size << " inizio: " << inizio << " fine: " << fine << std::endl;
+    std::cout << "rank: " << rank << "/" << com_size << " inizio: " << inizio << " fine: " << fine << "(escluso)" << std::endl;
 
     // il thread inizia ad iterare sul numero di inizio fino al numero di fine (fine esclusa)
-
     for (int casella = inizio; casella < fine; casella++) {
         // controllo se il numero della casella in cui sono arrivato è uno zero
         if(sudoku[casella] != 0){
@@ -232,23 +234,23 @@ int main(int argc, char* argv[]) {
     // e riempie il sudoku
     solve_singleton(sudoku, note);
 
-    //std::copy(arr10.begin(), arr10.begin() + 5, arr5.begin());
-    std::copy(sudoku.begin()+inizio, sudoku.begin() + inizio + fine, sudoku.begin());
+    // Faccio la slice del grande array (sudoku)
+    // Faccio il taglio dall'inizio del lavoro del thread 
+    // più il numero di caselle che deve lavorare
+    std::copy(sudoku.begin()+inizio, sudoku.begin() + inizio + lavoro_per_thread, sudoku.begin());
+    
+    if (rank == ROOT) {
+        _pprint(sudoku);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
 
-    std::cout << "ok" << std::endl;
-
-    // a questo punto i thread devono scambiarsi le proprie tabelle
-    // di sudoku compilate con i singleton
-    MPI_Allgather(&sudoku, fine-inizio, MPI_INT, &recv_sudoku, fine-inizio, MPI_INT, MPI_COMM_WORLD);
-    //MPI_Gather(&sudoku, 81, MPI_INT, &recv_sudoku, 81, MPI_INT, ROOT, MPI_COMM_WORLD);
+    // A questo punto i thread devono scambiarsi le proprie tabelle con solo le caselle lavorate
+    MPI_Allgather(&sudoku, lavoro_per_thread, MPI_INT, &recv_sudoku, lavoro_per_thread, MPI_INT, MPI_COMM_WORLD);
 
     if (rank == ROOT) {
         _pprint(recv_sudoku);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    if (rank != ROOT) {
-        _pprint(recv_sudoku);
-    }
 
 
     MPI_Finalize();
