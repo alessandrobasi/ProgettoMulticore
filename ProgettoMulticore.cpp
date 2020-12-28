@@ -12,6 +12,8 @@ Sorgenti:
     https://en.wikipedia.org/wiki/Sudoku_solving_algorithms
     http://www.ams.org/notices/200904/tx090400460p.pdf
     https://ichi.pro/it/risolvi-il-sudoku-in-modo-piu-elegante-con-l-algoritmo-di-crook-in-python-105010293053459
+    https://github.com/wyfok/Solve_Sudoku_with_Crook_algorithm
+    https://towardsdatascience.com/solve-sudoku-more-elegantly-with-crooks-algorithm-in-python-5f819d371813
 
 */
 
@@ -77,6 +79,7 @@ void solve_singleton(sudo &sudoku, sudonote &note) {
 
             if (note[riga][colonna].size() == 1) {
                 sudoku[9*riga + colonna] = note[riga][colonna][0];
+                note[riga][colonna].clear();
             }
 
         }
@@ -102,11 +105,10 @@ void markup(sudo sudoku, int casella, sudonote &note) {
             !check_square(sudoku, trynum, riga, colonna)) {
 
             note[riga][colonna].push_back(trynum);
-
+            
         }// if
     }// for
 }// markup
-
 
 ////////// debug
 void _pprint(sudo sudoku) {
@@ -183,14 +185,14 @@ int main(int argc, char* argv[]) {
         note[i].resize(9);
     }
 
-    //TODO: numero di thread non divisibili per 2 lasciano l'ultima casella del sudoku invariata
+    //TODO: numero di thread non divisibili per 3 lasciano le ultime caselle del sudoku invariate
     int lavoro_per_thread = 81 / com_size; // quante celle deve controllare ogni thread
     int inizio = rank * lavoro_per_thread; // cella del array di inzio
     int fine = inizio + lavoro_per_thread; // cella di fine
-    /*if (rank == com_size - 1) {
-        fine += com_size % 3;
-        lavoro_per_thread += com_size % 3;
-    }*/
+    if (rank == com_size - 1 && 81 % com_size != 0) {
+        fine += 81 % com_size;
+        lavoro_per_thread += 81 % com_size;
+    }
 
     // per una giusta dimostrazione creo il sudoku solo nel thread master
     if (rank == ROOT) {
@@ -212,22 +214,24 @@ int main(int argc, char* argv[]) {
     // allineo ogni thread su questa barriera, al fine di essere sicuro 
     // che il primo thread (che supera la bariera) riesce a trovare il sudoku già riempito
     MPI_Barrier(MPI_COMM_WORLD);
+
+
     MPI_Bcast(&sudoku, MAX_BUFF, MPI_INT, 0, MPI_COMM_WORLD);
-    
+
     // a questo punto ogni thread lavora per se
     std::cout << "rank: " << rank << "/" << com_size << " inizio: " << inizio << " fine: " << fine << "(escluso)" << std::endl;
 
     // il thread inizia ad iterare sul numero di inizio fino al numero di fine (fine esclusa)
     for (int casella = inizio; casella < fine; casella++) {
         // controllo se il numero della casella in cui sono arrivato è uno zero
-        if(sudoku[casella] != 0){
+        if (sudoku[casella] != 0) {
             continue;
         }
 
         // sudoku[casella] == 0
         // segno nelle note (alla casella designata) i possibili valori
         markup(sudoku, casella, note);
-        
+
     }
 
     // dopo aver riempito le note, ogni thread cerca i singoli elementi
@@ -235,22 +239,23 @@ int main(int argc, char* argv[]) {
     solve_singleton(sudoku, note);
 
     // Faccio la slice del grande array (sudoku)
-    // Faccio il taglio dall'inizio del lavoro del thread 
-    // più il numero di caselle che deve lavorare
-    std::copy(sudoku.begin()+inizio, sudoku.begin() + inizio + lavoro_per_thread, sudoku.begin());
-    
-    if (rank == ROOT) {
-        _pprint(sudoku);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
+    // Faccio il taglio dall'inizio del lavoro del thread alla fine
+    std::copy(sudoku.begin() + inizio, sudoku.begin() + fine, sudoku.begin());
+
 
     // A questo punto i thread devono scambiarsi le proprie tabelle con solo le caselle lavorate
-    MPI_Allgather(&sudoku, lavoro_per_thread, MPI_INT, &recv_sudoku, lavoro_per_thread, MPI_INT, MPI_COMM_WORLD);
+    //MPI_Allgather(&sudoku, fine - inizio, MPI_INT, &recv_sudoku, fine - inizio, MPI_INT, MPI_COMM_WORLD);
+    //MPI_Gather(&sudoku, fine - inizio, MPI_INT, &recv_sudoku, fine - inizio, MPI_INT, ROOT, MPI_COMM_WORLD);
 
-    if (rank == ROOT) {
+    /*if (rank == ROOT) {
         _pprint(recv_sudoku);
-    }
+        sudoku = recv_sudoku;
+    }*/
+
+
     MPI_Barrier(MPI_COMM_WORLD);
+    
+    
 
 
     MPI_Finalize();
