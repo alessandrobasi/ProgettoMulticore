@@ -26,7 +26,7 @@ Sorgenti:
 //#include <omp.h>  // Impostazioni di Visual Studio | Proprietà -> C/c++ -> Linguaggio -> Supporto per OpenMP
 #include "mpi.h"  // https://www.microsoft.com/en-us/download/details.aspx?id=100593
 
-
+#define DEBUG false
 #define MAX_BUFF 81
 #define ROOT 0
 
@@ -154,6 +154,12 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &com_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (com_size % 3 != 0 && DEBUG) {
+        MPI_Finalize();
+        std::cout << "il numero di thread non e' un divisore o multiplo di 3" << std::endl;
+        return 0;
+    }
+
 
     /*
     Possiamo vedere la griglia del sudoku come una serie continua di celle
@@ -245,12 +251,12 @@ int main(int argc, char* argv[]) {
 
     // A questo punto i thread devono scambiarsi le proprie tabelle con solo le caselle lavorate
     //MPI_Allgather(&sudoku, fine - inizio, MPI_INT, &recv_sudoku, fine - inizio, MPI_INT, MPI_COMM_WORLD);
-    //MPI_Gather(&sudoku, fine - inizio, MPI_INT, &recv_sudoku, fine - inizio, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Gather(&sudoku, fine - inizio, MPI_INT, &recv_sudoku, fine - inizio, MPI_INT, ROOT, MPI_COMM_WORLD);
 
-    /*if (rank == ROOT) {
+    if (rank == ROOT) {
         _pprint(recv_sudoku);
         sudoku = recv_sudoku;
-    }*/
+    }
 
 
     MPI_Barrier(MPI_COMM_WORLD);
