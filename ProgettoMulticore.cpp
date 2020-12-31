@@ -8,6 +8,8 @@ Studenti:
     Daniele Fardella        fardella.1642573@studenti.uniroma1.it
     Alessandro Basilici     basilici.1835392@studenti.uniroma1.it
 
+mpiexec -n 2 .\ProgettoMulticore.exe
+
 Sorgenti:
     https://en.wikipedia.org/wiki/Sudoku_solving_algorithms
     http://www.ams.org/notices/200904/tx090400460p.pdf
@@ -15,6 +17,7 @@ Sorgenti:
     https://github.com/wyfok/Solve_Sudoku_with_Crook_algorithm
     https://towardsdatascience.com/solve-sudoku-more-elegantly-with-crooks-algorithm-in-python-5f819d371813
 
+.
 */
 
 #include <iostream>
@@ -251,7 +254,7 @@ int main(int argc, char* argv[]) {
 
     // A questo punto i thread devono scambiarsi le proprie tabelle con solo le caselle lavorate
     //MPI_Allgather(&sudoku, fine - inizio, MPI_INT, &recv_sudoku, fine - inizio, MPI_INT, MPI_COMM_WORLD);
-    MPI_Gather(&sudoku, fine - inizio, MPI_INT, &recv_sudoku, fine - inizio, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Gather(&sudoku, fine - inizio, MPI_INT, &recv_sudoku, fine - inizio + (81 % com_size), MPI_INT, ROOT, MPI_COMM_WORLD);
 
     if (rank == ROOT) {
         _pprint(recv_sudoku);
@@ -261,7 +264,7 @@ int main(int argc, char* argv[]) {
 
     MPI_Barrier(MPI_COMM_WORLD);
     
-    
+    // PASSO 3 di Crook
 
 
     MPI_Finalize();
