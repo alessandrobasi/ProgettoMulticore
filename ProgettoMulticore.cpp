@@ -21,16 +21,94 @@ Sorgenti:
 #include <stdio.h>
 #include <omp.h>  // Impostazioni di Visual Studio | Proprietà -> C/c++ -> Linguaggio -> Supporto per OpenMP
 
-typedef std::array<int, 81> sudo;
 typedef std::vector<std::vector<std::vector<int>>> sudonote;
 
-sudo solving(sudo sudoku) {
-    int my_rank = omp_get_thread_num();
-    //int thread_count = omp_get_num_threads();
-#pragma omp critical
-    std::cout << my_rank << "/" << thread_count << std::endl;
+bool check_row(int* sudoku, int trynum, int riga) {
+
+    for (int incr = 0; incr < 9; incr++) {
+        if (trynum == sudoku[riga * 9 + incr]) {
+            return true;
+        }
+    }
+    return false;
 }
 
+bool check_col(int* sudoku, int trynum, int col) {
+    for (int incr = 0; incr < 9; incr++) {
+        if (trynum == sudoku[col + 9 * incr]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool check_square(int* sudoku, int trynum, int riga, int col) {
+    riga /= 3;
+    col /= 3;
+
+    for (int add_riga = 0; add_riga < 3; add_riga++) {
+        for (int add_col = 0; add_col < 3; add_col++) {
+            if (trynum == sudoku[9 * (3 * riga + add_riga) + (3 * col + add_col)]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+int* solving(int* _sudoku, int _thread_count) {
+    //int my_rank = omp_get_thread_num();
+    //int thread_count = omp_get_num_threads();
+    int threads = _thread_count;
+    int* sudoku = _sudoku;
+    /*#pragma omp critical
+    std::cout << my_rank << "/" << thread_count << std::endl;*/
+    #pragma omp parallel for firstprivate(sudoku)
+    for (int pos = 0; pos < 81; pos++) {
+        if (sudoku[pos] == 0) {
+            
+            int col = pos % 9;
+            int row = pos / 9;
+
+            for (int trynum = 1; trynum < 10; trynum++) {
+                // verifico se mettendo il numero trynum ho una violazione
+                if (!check_col(sudoku, trynum, col) &&
+                    !check_row(sudoku, trynum, row) &&
+                    !check_square(sudoku, trynum, row, col)) {
+
+                    sudoku[pos] = trynum; // tenta la posizione del numero
+
+                    // ricorsione, sperando che il numero messo non porti a un fallimento ti tutti i numeri di una futura cella
+                    int* result = solving(sudoku, threads);
+
+                    if (result == NULL) { // se il numero immesso prima (trynum) è sbagliato, azzera la posizione del sudoku
+                        sudoku[pos] = 0;
+                    }
+                    else {
+                        return result;
+                    }
+                }
+            }
+            // nessun numero va bene, quelli precedenti sono errati
+            return NULL;
+        }
+    }
+    return sudoku;
+}
+
+////////// debug
+void _pprint(int* sudoku) {
+    for (int i = 0; i < 81; i++) {
+
+        if (i % 9 == 0) {
+            std::cout << std::endl;
+        }
+
+        std::cout << sudoku[i] << " ";
+
+    }
+    std::cout << std::endl;
+}
 
 int main(int argc, char* argv[]) {
     
@@ -40,7 +118,7 @@ int main(int argc, char* argv[]) {
     }
     int thread_count = atoi(argv[1]);
 
-    sudo sudoku = {
+    int sudoku[81] = {
              0 , 0 , 0 , 1 , 8 , 0 , 3 , 6 , 0 , //  0 ...  8
              0 , 7 , 0 , 2 , 0 , 4 , 0 , 0 , 8 , //  9 ... 17
              0 , 0 , 0 , 0 , 5 , 7 , 2 , 0 , 9 , // 18 ... 26
@@ -53,17 +131,19 @@ int main(int argc, char* argv[]) {
     };
 
 
-    #pragma omp parallel num_threads(thread_count)
-    {
-        int my_rank = omp_get_thread_num();
-        //int thread_count = omp_get_num_threads();
-        #pragma omp critical
-        std::cout << my_rank << "/" << thread_count << std::endl;
-    }
+    //#pragma omp parallel num_threads(thread_count)
+    //{
+    //    int my_rank = omp_get_thread_num();
+    //    //int thread_count = omp_get_num_threads();
+    //    #pragma omp critical
+    //    std::cout << my_rank << "/" << thread_count << std::endl;
+    //}
     
-    #pragma omp parallel num_threads(thread_count) 
-    solving(sudoku);
+    //#pragma omp parallel num_threads(thread_count) 
 
+
+    int* end = solving(sudoku, thread_count);
+    _pprint(end);
 
     return 0;
 }
