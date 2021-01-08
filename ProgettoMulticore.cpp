@@ -63,13 +63,13 @@ int* solving(int* _sudoku, int _thread_count) {
     int* sudoku = _sudoku;
     /*#pragma omp critical
     std::cout << my_rank << "/" << thread_count << std::endl;*/
-    #pragma omp parallel for firstprivate(sudoku)
+    
     for (int pos = 0; pos < 81; pos++) {
         if (sudoku[pos] == 0) {
             
             int col = pos % 9;
             int row = pos / 9;
-
+            #pragma omp parallel for firstprivate(sudoku)
             for (int trynum = 1; trynum < 10; trynum++) {
                 // verifico se mettendo il numero trynum ho una violazione
                 if (!check_col(sudoku, trynum, col) &&
@@ -79,7 +79,13 @@ int* solving(int* _sudoku, int _thread_count) {
                     sudoku[pos] = trynum; // tenta la posizione del numero
 
                     // ricorsione, sperando che il numero messo non porti a un fallimento ti tutti i numeri di una futura cella
-                    int* result = solving(sudoku, threads);
+                    int* result;
+                    #pragma omp parallel private(result)
+                    //#pragma omp task private(result)
+                    {
+                        result = solving(sudoku, threads);
+                    }
+                    
 
                     if (result == NULL) { // se il numero immesso prima (trynum) è sbagliato, azzera la posizione del sudoku
                         sudoku[pos] = 0;
@@ -96,6 +102,10 @@ int* solving(int* _sudoku, int _thread_count) {
     return sudoku;
 }
 
+int* solve2(int* _sudoku) {
+    return NULL;
+}
+
 ////////// debug
 void _pprint(int* sudoku) {
     for (int i = 0; i < 81; i++) {
@@ -107,7 +117,7 @@ void _pprint(int* sudoku) {
         std::cout << sudoku[i] << " ";
 
     }
-    std::cout << std::endl;
+    std::cout << "\n\n" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -129,7 +139,7 @@ int main(int argc, char* argv[]) {
              9 , 0 , 0 , 4 , 0 , 8 , 0 , 5 , 0 , // 63 ... 71
              0 , 8 , 6 , 0 , 1 , 5 , 0 , 0 , 0 , // 72 ... 80
     };
-
+    _pprint(sudoku);
 
     //#pragma omp parallel num_threads(thread_count)
     //{
@@ -142,8 +152,29 @@ int main(int argc, char* argv[]) {
     //#pragma omp parallel num_threads(thread_count) 
 
 
-    int* end = solving(sudoku, thread_count);
-    _pprint(end);
+    //int* end = solving(sudoku, thread_count);
+
+
+    for (int pos = 0; pos < 81; pos++) {
+        if (sudoku[pos] == 0) {
+
+            int col = pos % 9;
+            int row = pos / 9;
+
+            #pragma omp parallel for firstprivate(sudoku)
+            for (int trynum = 1; trynum < 10; trynum++) {
+                if (!check_col(sudoku, trynum, col) &&
+                    !check_row(sudoku, trynum, row) &&
+                    !check_square(sudoku, trynum, row, col)) {
+
+                    sudoku[pos] = trynum;
+
+                }
+            }
+        }
+    }
+
+    _pprint(sudoku);
 
     return 0;
 }
