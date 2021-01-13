@@ -16,94 +16,128 @@ Sorgenti:
 */
 
 #include <iostream>
-#include <vector>
-#include <array>
 #include <stdio.h>
-#include <omp.h>  // Impostazioni di Visual Studio | Proprietà -> C/c++ -> Linguaggio -> Supporto per OpenMP
+#include <omp.h>
 
-typedef std::vector<std::vector<std::vector<int>>> sudonote;
-
-bool check_row(int* sudoku, int trynum, int riga) {
-
+/////////////////////////////
+bool _check_row(int* sudoku, int trynum, int riga) {
+    bool test = false;
+    #pragma omp parallel for num_threads(9),firstprivate(sudoku)
     for (int incr = 0; incr < 9; incr++) {
         if (trynum == sudoku[riga * 9 + incr]) {
-            return true;
+            test = true;
         }
     }
-    return false;
+    return test;
 }
 
-bool check_col(int* sudoku, int trynum, int col) {
+bool _check_col(int* sudoku, int trynum, int col) {
+    bool test = false;
+    #pragma omp parallel for num_threads(9),firstprivate(sudoku)
     for (int incr = 0; incr < 9; incr++) {
         if (trynum == sudoku[col + 9 * incr]) {
-            return true;
+            test = true;
         }
     }
-    return false;
+    return test;
 }
 
-bool check_square(int* sudoku, int trynum, int riga, int col) {
+bool _check_square(int* sudoku, int trynum, int riga, int col) {
     riga /= 3;
     col /= 3;
-
+    bool test = false;
+    #pragma omp parallel for num_threads(9),firstprivate(sudoku)
     for (int add_riga = 0; add_riga < 3; add_riga++) {
         for (int add_col = 0; add_col < 3; add_col++) {
             if (trynum == sudoku[9 * (3 * riga + add_riga) + (3 * col + add_col)]) {
-                return true;
+                test = true;
             }
         }
     }
-    return false;
+    return test;
+}
+/////////////////////////////
+
+/* prendo il sudoku, il numero da testare e riga e colonna "virtuali"
+ritorno un booleano per indicare se trynum va bene (non viola le regole del gioco)*/
+bool check_space(int* sudoku, int trynum, int row, int col) {
+
+    bool Brow, Bcol, Bsquare;
+
+    // creo una verifica parallela delle 3 funzioni di verifica
+    #pragma omp parallel num_threads(3) firstprivate(sudoku)
+    {
+        int t = omp_get_thread_num();
+        switch (t) {
+        case 0:
+            Brow = _check_row(sudoku, trynum, row);
+            break;
+        case 1:
+            Bcol = _check_col(sudoku, trynum, col);
+            break;
+        case 2:
+            Bsquare = _check_square(sudoku, trynum, row, col);
+            break;
+        default:
+            break;
+        }
+    }
+    // le funzioni ritornano se il numero è presente nella riga|colonna|quadrato
+    // di conseguenza se è presente il posto non va bene
+    return !Brow && !Bcol && !Bsquare;
 }
 
-int* solving(int* _sudoku, int _thread_count) {
-    //int my_rank = omp_get_thread_num();
-    //int thread_count = omp_get_num_threads();
-    int threads = _thread_count;
-    int* sudoku = _sudoku;
-    /*#pragma omp critical
-    std::cout << my_rank << "/" << thread_count << std::endl;*/
+/* prendo il sudoku e una variabile vuota pos
+modifico pos con la prima posizione vuota*/
+void next_pos_vuoto(int* sudoku, int& pos, int num_threads) {
+    pos = -1; // inizializzo la variabile a un vaore "NULLO"
     
-    for (int pos = 0; pos < 81; pos++) {
-        if (sudoku[pos] == 0) {
-            
-            int col = pos % 9;
-            int row = pos / 9;
-            #pragma omp parallel for firstprivate(sudoku)
-            for (int trynum = 1; trynum < 10; trynum++) {
-                // verifico se mettendo il numero trynum ho una violazione
-                if (!check_col(sudoku, trynum, col) &&
-                    !check_row(sudoku, trynum, row) &&
-                    !check_square(sudoku, trynum, row, col)) {
-
-                    sudoku[pos] = trynum; // tenta la posizione del numero
-
-                    // ricorsione, sperando che il numero messo non porti a un fallimento ti tutti i numeri di una futura cella
-                    int* result;
-                    #pragma omp parallel private(result)
-                    //#pragma omp task private(result)
-                    {
-                        result = solving(sudoku, threads);
-                    }
-                    
-
-                    if (result == NULL) { // se il numero immesso prima (trynum) è sbagliato, azzera la posizione del sudoku
-                        sudoku[pos] = 0;
-                    }
-                    else {
-                        return result;
-                    }
+    // uso il parallelismo per eseguire i passi del loop
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = 0; i < 81; i++) {
+        if (sudoku[i] == 0) {
+            #pragma omp critical
+            {
+                if (pos < 0) {
+                    pos = i;
                 }
             }
-            // nessun numero va bene, quelli precedenti sono errati
-            return NULL;
         }
     }
-    return sudoku;
 }
 
-int* solve2(int* _sudoku) {
-    return NULL;
+bool backtracking(int* sudoku, int num_threads) {
+    int pos;
+    // Cerco la prima posizione vuota nello schema
+    next_pos_vuoto(sudoku, pos, num_threads);
+    
+    // Controllo se esiste una posizione vuota
+    if (pos < 0) {
+        return true;
+    }
+    // mi calcolo la colonna e la riga "virtuale" del vettore
+    int col = pos % 9;
+    int row = pos / 9;
+
+    // tento di cercare il numero giusto
+    // !! Nessun parallelismo poichè ricorsivo
+    // !! Su Windows non è presente la direttiva Task
+    for (int trynum = 1; trynum < 10; trynum++) {
+
+        // calcolo se il numero del for può essere inserito
+        if (check_space(sudoku, trynum, row, col)) {
+            sudoku[pos] = trynum;
+
+            // eseguo la ricorsione avendo bloccato la prima posisione vuota
+            if (backtracking(sudoku, num_threads))
+                return true;
+
+            // se tutte le ricorsioni falliscono azzera la posizione
+            sudoku[pos] = 0;
+        }
+
+    }
+    return false;
 }
 
 ////////// debug
@@ -121,13 +155,17 @@ void _pprint(int* sudoku) {
 }
 
 int main(int argc, char* argv[]) {
-    
+    int thread_count;
     if (argc <= 1) {
-        std::cout << "\nInserire come argomento al programma il numero di thread\n" << argv[0] << " <Num thread>\n\n" << std::endl;
-        return 0;
+        std::cout << "Inserire come argomento al programma il numero di thread\n" << argv[0] << " <Num thread>\n\nIl programma continua con 1 thread (dove possibilie)\n" << std::endl;
+        thread_count = 1;
     }
-    int thread_count = atoi(argv[1]);
+    else {
+        thread_count = atoi(argv[1]);
+    }
+    
 
+    // costruzione del sudoku
     int sudoku[81] = {
              0 , 0 , 0 , 1 , 8 , 0 , 3 , 6 , 0 , //  0 ...  8
              0 , 7 , 0 , 2 , 0 , 4 , 0 , 0 , 8 , //  9 ... 17
@@ -139,42 +177,11 @@ int main(int argc, char* argv[]) {
              9 , 0 , 0 , 4 , 0 , 8 , 0 , 5 , 0 , // 63 ... 71
              0 , 8 , 6 , 0 , 1 , 5 , 0 , 0 , 0 , // 72 ... 80
     };
-    _pprint(sudoku);
 
-    //#pragma omp parallel num_threads(thread_count)
-    //{
-    //    int my_rank = omp_get_thread_num();
-    //    //int thread_count = omp_get_num_threads();
-    //    #pragma omp critical
-    //    std::cout << my_rank << "/" << thread_count << std::endl;
-    //}
-    
-    //#pragma omp parallel num_threads(thread_count) 
+    // inizio algoritmo di backtracking
+    backtracking(sudoku, thread_count);
 
-
-    //int* end = solving(sudoku, thread_count);
-
-
-    for (int pos = 0; pos < 81; pos++) {
-        if (sudoku[pos] == 0) {
-
-            int col = pos % 9;
-            int row = pos / 9;
-
-            #pragma omp parallel for firstprivate(sudoku)
-            for (int trynum = 1; trynum < 10; trynum++) {
-                if (!check_col(sudoku, trynum, col) &&
-                    !check_row(sudoku, trynum, row) &&
-                    !check_square(sudoku, trynum, row, col)) {
-
-                    sudoku[pos] = trynum;
-
-                }
-            }
-        }
-    }
 
     _pprint(sudoku);
-
     return 0;
 }
