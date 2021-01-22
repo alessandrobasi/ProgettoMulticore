@@ -22,9 +22,9 @@ Sorgenti:
 /////////////////////////////
 bool _check_row(int* sudoku, int trynum, int riga) {
     bool test = false;
-    #pragma omp parallel for num_threads(9),firstprivate(sudoku)
+    #pragma omp parallel for num_threads(9) firstprivate(sudoku)
     for (int incr = 0; incr < 9; incr++) {
-        if (trynum == sudoku[riga * 9 + incr]) {
+        if (!test && trynum == sudoku[riga * 9 + incr]) {
             test = true;
         }
     }
@@ -33,9 +33,9 @@ bool _check_row(int* sudoku, int trynum, int riga) {
 
 bool _check_col(int* sudoku, int trynum, int col) {
     bool test = false;
-    #pragma omp parallel for num_threads(9),firstprivate(sudoku)
+    #pragma omp parallel for num_threads(9) firstprivate(sudoku)
     for (int incr = 0; incr < 9; incr++) {
-        if (trynum == sudoku[col + 9 * incr]) {
+        if (!test && trynum == sudoku[col + 9 * incr]) {
             test = true;
         }
     }
@@ -46,10 +46,10 @@ bool _check_square(int* sudoku, int trynum, int riga, int col) {
     riga /= 3;
     col /= 3;
     bool test = false;
-    #pragma omp parallel for num_threads(9),firstprivate(sudoku)
+    #pragma omp parallel for num_threads(9) firstprivate(sudoku)
     for (int add_riga = 0; add_riga < 3; add_riga++) {
         for (int add_col = 0; add_col < 3; add_col++) {
-            if (trynum == sudoku[9 * (3 * riga + add_riga) + (3 * col + add_col)]) {
+            if (!test && trynum == sudoku[9 * (3 * riga + add_riga) + (3 * col + add_col)]) {
                 test = true;
             }
         }
@@ -95,7 +95,7 @@ void next_pos_vuoto(int* sudoku, int& pos, int num_threads) {
     // uso il parallelismo per eseguire i passi del loop
     #pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < 81; i++) {
-        if (sudoku[i] == 0) {
+        if (sudoku[i] == 0 && pos < 0) {
             #pragma omp critical
             {
                 if (pos < 0) {
@@ -111,7 +111,7 @@ bool backtracking(int* sudoku, int num_threads) {
     // Cerco la prima posizione vuota nello schema
     next_pos_vuoto(sudoku, pos, num_threads);
     
-    // Controllo se esiste una posizione vuota
+    // Controllo se esiste almeno una posizione vuota
     if (pos < 0) {
         return true;
     }
@@ -157,7 +157,7 @@ void _pprint(int* sudoku) {
 int main(int argc, char* argv[]) {
     int thread_count;
     if (argc <= 1) {
-        std::cout << "Inserire come argomento al programma il numero di thread\n" << argv[0] << " <Num thread>\n\nIl programma continua con 1 thread (dove possibilie)\n" << std::endl;
+        std::cout << "Inserire come argomento al programma il numero di thread\n" << argv[0] << " <Num thread>\n\nIl programma continua con 1 thread (dove possibile)\n" << std::endl;
         thread_count = 1;
     }
     else {
@@ -180,7 +180,6 @@ int main(int argc, char* argv[]) {
 
     // inizio algoritmo di backtracking
     backtracking(sudoku, thread_count);
-
 
     _pprint(sudoku);
     return 0;
