@@ -96,7 +96,6 @@ void next_pos_vuoto(int sudoku[9][9], int &row, int &col) {
 					row = i;
 					col = j;
 				}// if row col
-				break;
             }// if sudoku
         }// for j
     }// for i
