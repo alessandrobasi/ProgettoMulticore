@@ -3,7 +3,7 @@
 
 Progetto n� 7 Sudoku
 Approccio multicore usato: MPI, OpenMP  
-Approccio algoritmo usato: Backtracking, Algoritmo di Crook?
+Approccio algoritmo usato: Algoritmo di Crook, Backtracking
 Studenti:
     Daniele Fardella        fardella.1642573@studenti.uniroma1.it
     Alessandro Basilici     basilici.1835392@studenti.uniroma1.it
