@@ -189,10 +189,12 @@ int main(int argc, char* argv[]) {
              9 , 0 , 0 , 4 , 0 , 8 , 0 , 5 , 0 , // 63 ... 71
              0 , 8 , 6 , 0 , 1 , 5 , 0 , 0 , 0 , // 72 ... 80
     };
-
+	
+	double start_time = omp_get_wtime();
     // inizio algoritmo di backtracking
     backtracking(sudoku, thread_count);
-
+	std::cout << omp_get_wtime()-start_time << std::endl;
+	
     _pprint(sudoku);
     return 0;
 }
